@@ -53,9 +53,9 @@ module.exports = {
       .then((course) =>
         !course
           ? res.status(404).json({
-              message: "User deleted, but no courses found",
+              message: "User deleted, but no thoughts found",
             })
-          : res.json({ message: "user successfully deleted" })
+          : res.json({ message: "User successfully deleted" })
       )
       .catch((err) => {
         console.log(err);
