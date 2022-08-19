@@ -5,9 +5,9 @@ module.exports = {
   getUsers(req, res) {
     User.find()
       .select("-__v")
-      .then(async (users) => {
+      .then(async (user) => {
         const userObj = {
-          users,
+          user,
         };
         return res.json(userObj);
       })
@@ -18,12 +18,23 @@ module.exports = {
   },
   //get single user
   getUser(req, res) {
-    User.findOne({ _id: req.params.userid })
-      .select("-__v")
-      .then(async (users) => {
+    User.findOne({ _id: req.params.userId })
+      .populate({
+        path: "thoughts",
+        select: "-__v",
+      })
+      .populate({
+        path: "friends",
+        select: "-__v",
+      })
+      .then(async (user) => {
         const userObj = {
-          users,
+          user,
         };
+        if (!userObj) {
+          res.status(404).json({ message: "No such user exists" });
+          return;
+        }
         return res.json(userObj);
       })
       .catch((err) => {
@@ -38,31 +49,88 @@ module.exports = {
       .catch((err) => res.status(500).json(err));
   },
   //update user
-  //delete user
-  deleteUser(req, res) {
-    User.findOneAndRemove({ _id: req.params.userid })
-      .then(async (user) =>
-        !user
-          ? res.status(404).json({ message: "No such user exists" })
-          : Thought.findOneAndUpdate(
-              { users: req.params.userId },
-              { $pull: { users: req.params.userId } },
-              { new: true }
-            )
-      )
-      .then((course) =>
-        !course
-          ? res.status(404).json({
-              message: "User deleted, but no thoughts found",
-            })
-          : res.json({ message: "User successfully deleted" })
-      )
+  updateUser(req, res) {
+    User.findOneAndUpdate({ _id: req.params.userId }, body, {
+      new: true,
+      runValidators: true,
+    })
+      .then(async (user) => {
+        const userObj = {
+          user,
+        };
+        if (!userObj) {
+          res.status(404).json({ message: "No such user exists" });
+          return;
+        }
+        return res.json(userObj);
+      })
       .catch((err) => {
         console.log(err);
-        res.status(500).json(err);
+        return res.status(500).json(err);
       });
   },
-  //(b) remove user thoughts
+  //delete user
+  deleteUser(req, res) {
+    Thought.deleteMany({ userId: req.params.id }).then(async () => {
+      User.findOneAndDelete({ userId: req.params.id })
+        .then(async (user) => {
+          const userObj = {
+            user,
+          };
+          if (!userObj) {
+            res.status(404).json({ message: "No such user exists" });
+            return;
+          }
+          return res.json(userObj);
+        })
+        .catch((err) => {
+          console.log(err);
+          return res.status(500).json(err);
+        });
+    });
+  },
   //post new user friend
+  addFriend(req, res) {
+    User.findOneAndUpdate(
+      { userId: req.params.id },
+      { $push: { friends: req.params.friendsId } },
+      { new: true }
+    )
+      .then(async (user) => {
+        const userObj = {
+          user,
+        };
+        if (!userObj) {
+          res.status(404).json({ message: "No such user exists" });
+          return;
+        }
+        return res.json(userObj);
+      })
+      .catch((err) => {
+        console.log(err);
+        return res.status(500).json(err);
+      });
+  },
   //delete friend
+  removeFriend(req, res) {
+    User.findOneAndDelete(
+      { userId: req.params.id },
+      { $pull: { friends: req.params.friendsId } },
+      { new: true }
+    )
+      .then(async (user) => {
+        const userObj = {
+          user,
+        };
+        if (!userObj) {
+          res.status(404).json({ message: "No such user exists" });
+          return;
+        }
+        return res.json(userObj);
+      })
+      .catch((err) => {
+        console.log(err);
+        return res.status(500).json(err);
+      });
+  },
 };
