@@ -24,7 +24,7 @@ const reactionSchema = new mongoose.Schema({
   },
 });
 
-const thoughtSchema = new mongoose.Schema(
+const thoughtSchema = new Schema(
   {
     thoughtText: {
       type: String,
@@ -54,5 +54,7 @@ const thoughtSchema = new mongoose.Schema(
 thoughtSchema.virual("reactionCount").get(function () {
   return this.reactions.length;
 });
+
+const Thought = model("thought", thoughtSchema);
 
 module.exports = Thought;

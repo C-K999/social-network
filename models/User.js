@@ -1,7 +1,7 @@
 const { Schema, model } = require("mongoose");
 const thoughtSchema = require("./Thought");
 
-// Schema to create Student model
+// Schema to create User model
 const userSchema = new mongoose.Schema(
   {
     username: {
@@ -17,14 +17,24 @@ const userSchema = new mongoose.Schema(
       match: /^([a-z0-9_\.-]+)@([\da-z\.-]+)\.([a-z\.]{2,6})$/,
     },
     thoughts: [thoughtSchema],
-    friends: [userSchema],
+    friends: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
   },
   {
     toJSON: {
       getters: true,
     },
+    id: false,
   }
 );
+
+userSchema.virual("reactionCount").get(function () {
+  return this.friends.length;
+});
 
 const User = model("user", userSchema);
 
