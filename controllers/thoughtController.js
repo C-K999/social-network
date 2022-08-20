@@ -18,7 +18,7 @@ module.exports = {
   },
   //get single thought
   getThought(req, res) {
-    Thought.findOne({ _id: req.params.thoughtId })
+    Thought.findOne({ _id: req.params.id })
       .populate({
         path: "reactions",
         select: "-__v",
@@ -41,34 +41,38 @@ module.exports = {
   //post new thought
   createThought(req, res) {
     Thought.create(req.body)
-      .then(({ _id }) => {
+      .then((thought) => {
         return User.findOneAndUpdate(
-          { _id: req.body.userId },
-          { $push: { thoughts: _id } },
-          { new: true }
+          { _id: req.body._id },
+          { $addToSet: { thoughts: thought._id } }, //insert unless already exists
+          {
+            new: true,
+            runValidators: true,
+          }
         );
       })
-      .then(async (thought) => {
-        const thoughtObj = {
-          thought,
-        };
-        if (!thoughtObj) {
-          res.status(404).json({ message: "No such thought exists" });
-          return;
-        }
-        return res.json(thoughtObj);
-      })
+      .then((user) =>
+        !user
+          ? res.status(404).json({
+              message: "Thought created, but found no user with that ID",
+            })
+          : res.json("Created the thought 🎉")
+      )
       .catch((err) => {
         console.log(err);
-        return res.status(500).json(err);
+        res.status(500).json(err);
       });
   },
   //update
   updateThought(req, res) {
-    Thought.findOneAndUpdate({ _id: req.params.thoughtId }, body, {
-      new: true,
-      runValidators: true,
-    })
+    Thought.findOneAndUpdate(
+      { _id: req.params.id },
+      { $set: req.body },
+      {
+        new: true,
+        runValidators: true,
+      }
+    )
       .then(async (thought) => {
         const thoughtObj = {
           thought,
@@ -86,30 +90,60 @@ module.exports = {
   },
   //delete
   deleteThought(req, res) {
-    Thought.findOneAndDelete({ _id: req.params.thoughtId }).then(
-      async (thought) => {
-        const thoughtObj = {
-          thought,
+    Thought.findOneAndRemove({ _id: req.params.id }).then(async (thought) => {
+      const thoughtObj = {
+        thought,
+      };
+      if (!thoughtObj) {
+        res.status(404).json({ message: "No such thought exists" });
+        return;
+      }
+      return User.findOneAndUpdate(
+        { _id: req.params._id },
+        { $pull: { thoughts: thought._id } },
+        { new: true }
+      ).then(async (user) => {
+        const userObj = {
+          user,
         };
-        if (!thoughtObj) {
-          res.status(404).json({ message: "No such thought exists" });
+        if (!userObj) {
+          res.status(404).json({ message: "No such user exists" });
           return;
         }
-        return User.findOneAndDelete(
-          { _id: req.body.userId },
-          { $pull: { thoughts: _id } },
-          { new: true }
-        ).then(async (user) => {
-          const userObj = {
-            user,
-          };
-          if (!userObj) {
-            res.status(404).json({ message: "No such user exists" });
-            return;
-          }
-          return res.json(userObj);
-        });
-      }
-    );
+        return res.json(userObj);
+      });
+    });
+  },
+  //add reaction
+  addReaction(req, res) {
+    Thought.findOneAndUpdate(
+      { _id: req.params.thoughtId },
+      { $addToSet: { reactions: req.body.reactionId } },
+      { new: true, runValidators: true }
+    )
+      .then((thought) => {
+        if (!thought) {
+          res.status(404).json({ message: "No thought with this id" });
+          return;
+        }
+        res.json(thought);
+      })
+      .catch((err) => res.json(err));
+  },
+  //delete reaction
+  removeReaction(req, res) {
+    Thought.findOneAndUpdate(
+      { _id: req.params._id },
+      { $pull: { reactions: req.body } },
+      { new: true }
+    )
+      .then((thought) => {
+        if (!thought) {
+          res.status(404).json({ message: "No thought with this id" });
+          return;
+        }
+        res.json(thought);
+      })
+      .catch((err) => res.json(err));
   },
 };

@@ -4,6 +4,14 @@ module.exports = {
   //get all users
   getUsers(req, res) {
     User.find()
+      .populate({
+        path: "thoughts",
+        select: "-__v",
+      })
+      .populate({
+        path: "friends",
+        select: "-__v",
+      })
       .select("-__v")
       .then(async (user) => {
         const userObj = {
@@ -18,7 +26,7 @@ module.exports = {
   },
   //get single user
   getUser(req, res) {
-    User.findOne({ _id: req.params.userId })
+    User.findOne({ _id: req.params.id })
       .populate({
         path: "thoughts",
         select: "-__v",
@@ -27,16 +35,14 @@ module.exports = {
         path: "friends",
         select: "-__v",
       })
-      .then(async (user) => {
-        const userObj = {
-          user,
-        };
-        if (!userObj) {
-          res.status(404).json({ message: "No such user exists" });
-          return;
-        }
-        return res.json(userObj);
-      })
+      .select("-__v")
+      .then(async (user) =>
+        !user
+          ? res.status(404).json({ message: "No user with that ID" })
+          : res.json({
+              user,
+            })
+      )
       .catch((err) => {
         console.log(err);
         return res.status(500).json(err);
@@ -50,20 +56,22 @@ module.exports = {
   },
   //update user
   updateUser(req, res) {
-    User.findOneAndUpdate({ _id: req.params.userId }, body, {
-      new: true,
-      runValidators: true,
-    })
-      .then(async (user) => {
-        const userObj = {
-          user,
-        };
-        if (!userObj) {
-          res.status(404).json({ message: "No such user exists" });
-          return;
-        }
-        return res.json(userObj);
-      })
+    User.findOneAndUpdate(
+      { _id: req.params.id },
+      { $set: req.body },
+      {
+        new: true,
+        runValidators: true,
+      }
+    )
+      .select("-__v")
+      .then(async (user) =>
+        !user
+          ? res.status(404).json({ message: "No user with that ID" })
+          : res.json({
+              user,
+            })
+      )
       .catch((err) => {
         console.log(err);
         return res.status(500).json(err);
@@ -92,45 +100,33 @@ module.exports = {
   //post new user friend
   addFriend(req, res) {
     User.findOneAndUpdate(
-      { userId: req.params.id },
-      { $push: { friends: req.params.friendsId } },
-      { new: true }
+      { _id: req.params.userId },
+      { $addToSet: { friends: req.params.friendId } },
+      { new: true, runValidators: true }
     )
-      .then(async (user) => {
-        const userObj = {
-          user,
-        };
-        if (!userObj) {
-          res.status(404).json({ message: "No such user exists" });
+      .then((user) => {
+        if (!user) {
+          res.status(404).json({ message: "No user with this id" });
           return;
         }
-        return res.json(userObj);
+        res.json(user);
       })
-      .catch((err) => {
-        console.log(err);
-        return res.status(500).json(err);
-      });
+      .catch((err) => res.json(err));
   },
   //delete friend
   removeFriend(req, res) {
-    User.findOneAndDelete(
-      { userId: req.params.id },
-      { $pull: { friends: req.params.friendsId } },
-      { new: true }
+    User.findOneAndUpdate(
+      { _id: req.params.userId },
+      { $pull: { friends: req.params.friendId } },
+      { new: true, runValidators: true }
     )
-      .then(async (user) => {
-        const userObj = {
-          user,
-        };
-        if (!userObj) {
-          res.status(404).json({ message: "No such user exists" });
+      .then((user) => {
+        if (!user) {
+          res.status(404).json({ message: "No user with this id" });
           return;
         }
-        return res.json(userObj);
+        res.json(user);
       })
-      .catch((err) => {
-        console.log(err);
-        return res.status(500).json(err);
-      });
+      .catch((err) => res.json(err));
   },
 };
