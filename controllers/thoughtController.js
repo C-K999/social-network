@@ -99,9 +99,12 @@ module.exports = {
         return;
       }
       return User.findOneAndUpdate(
-        { _id: req.params._id },
-        { $pull: { thoughts: thought._id } },
-        { new: true }
+        { _id: req.params.id },
+        { $set: req.body },
+        {
+          new: true,
+          runValidators: true,
+        }
       ).then(async (user) => {
         const userObj = {
           user,
@@ -118,7 +121,7 @@ module.exports = {
   addReaction(req, res) {
     Thought.findOneAndUpdate(
       { _id: req.params.thoughtId },
-      { $addToSet: { reactions: req.body.reactionId } },
+      { $addToSet: { reactions: req.body } },
       { new: true, runValidators: true }
     )
       .then((thought) => {
@@ -133,7 +136,7 @@ module.exports = {
   //delete reaction
   removeReaction(req, res) {
     Thought.findOneAndUpdate(
-      { _id: req.params._id },
+      { _id: req.params.thoughtId },
       { $pull: { reactions: req.body } },
       { new: true }
     )
